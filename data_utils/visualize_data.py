@@ -28,6 +28,7 @@ if __name__ == '__main__':
         random_idx = np.random.randint(0, len(dataset))
         point_set, label, class_name = dataset[random_idx]
 
+        point_set = point_set.transpose(1,0)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(point_set[:, 0:3])
         if args.use_normals:

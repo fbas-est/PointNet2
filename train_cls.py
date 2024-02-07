@@ -118,19 +118,35 @@ class Trainer(object):
         self.writer.add_scalar('train/train_loss', avg_loss_train, epoch)
         print('[Epoch: %d, Loss: %.3f]' % (epoch, avg_loss_train))
 
-        if self.args.no_val:
+        if not self.args.no_val:
             if self.args.save_checkpoint:
-                if epoch!= 0 and epoch%self.args.save_epochs == 0:
-                    self.saver.save_checkpoint({'epoch': epoch + 1, 
-                                                'learning_rate': self.learning_rate,
-                                                'state_dict': self.model.module.state_dict(), 
-                                                'optimizer': self.optimizer.state_dict()},
-                                                filename=f"checkpoint_{epoch+1}.pth.tar")
+                if epoch!=0 and epoch % self.args.save_epochs == 0:
+                    # Save model if Parallel training is enabled
+                    if (len(self.args.gpu_ids) > 1):
+                        self.saver.save_checkpoint({'epoch': epoch + 1, 
+                                                    'learning_rate': self.learning_rate,
+                                                    'state_dict': self.model.module.state_dict(), 
+                                                    'optimizer': self.optimizer.state_dict()},
+                                                    filename=f"checkpoint_parallel_{epoch+1}.pth.tar")
+                    # Save model trained on a single GPU
+                    else:
+                        self.saver.save_checkpoint({'epoch': epoch + 1, 
+                                            'learning_rate': self.learning_rate,
+                                            'state_dict': self.model.state_dict(), 
+                                            'optimizer': self.optimizer.state_dict()},
+                                            filename=f"checkpoint_{epoch+1}.pth.tar")
+                    
+            if (len(self.args.gpu_ids) > 1):
+                self.saver.save_checkpoint({'epoch': epoch + 1, 
+                                            'learning_rate': self.learning_rate,
+                                            'state_dict': self.model.module.state_dict(), 
+                                            'optimizer': self.optimizer.state_dict()},
+                                            filename="last_parallel.pth.tar")
             else:
                 self.saver.save_checkpoint({'epoch': epoch + 1, 
-                            'learning_rate': self.learning_rate,
-                            'state_dict': self.model.module.state_dict(), 
-                            'optimizer': self.optimizer.state_dict()})
+                                    'learning_rate': self.learning_rate,
+                                    'state_dict': self.model.state_dict(), 
+                                    'optimizer': self.optimizer.state_dict()})
         
     def validation(self, epoch):
         """
