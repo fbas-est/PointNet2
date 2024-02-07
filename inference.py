@@ -5,6 +5,30 @@ import argparse
 from models.pointnet2_cls import PointNet2Classification
 import os
 
+
+def farthest_point_sample(points, samples):
+    """
+    Input:
+        points: input points data, [N, 3]
+        samples: are the number of point to index.
+    Return:
+        new_points:, indexed points data, [samples, 3]
+    """
+    N, C = points.shape
+    centroids = np.zeros(samples, dtype=np.int64)
+    distance = np.ones(N) * 1e10
+    farthest = np.random.randint(0, N, dtype=np.int64)
+    new_points = np.zeros([samples, C])
+    for i in range(samples):
+        centroids[i] = farthest
+        centroid = points[farthest].reshape(1, 3)
+        dist = np.sum((points - centroid) ** 2, axis=-1)
+        mask = dist < distance
+        distance[mask] = dist[mask]
+        farthest = np.argmax(distance, axis=-1)
+    points = points[centroids.astype(np.int32)]
+    return points
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -14,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_normals', action='store_true', default=False, help='use normals')
     parser.add_argument('--number_classes', type=int, default=40, help='Number of training classes')
     parser.add_argument('--vis_pcd', action='store_true', default=True, help='Visualize pcds for each prediction')
+    parser.add_argument('--num_points', type=int, default=None, help='Point Number')
     args = parser.parse_args()
 
     # Define operation device
@@ -36,7 +61,12 @@ if __name__ == '__main__':
     pcd_list = []
     for path in file_paths:
         if path.rsplit('.')[1] in valid_ext:
-            pcd_list.append(o3d.io.read_point_cloud(path))
+            if path.rsplit('.')[1] != 'txt':
+                curr_pcd = o3d.io.read_point_cloud(path)
+                points = np.concatenate((np.asarray(curr_pcd.points), np.asarray(curr_pcd.normals)), axis=-1)
+                pcd_list.append(points)
+            else:
+                pcd_list.append(np.loadtxt(path, delimiter=',').astype(np.float32))
 
     # Read the class mapping from the text file
     class_mapping_file = args.class_names_path
@@ -50,10 +80,13 @@ if __name__ == '__main__':
 
     for pcd in pcd_list:
         # Convert points and normals to NumPy arrays
-        points = np.asarray(pcd.points)  
-        if args.use_normals:
-            normals = np.asarray(pcd.normals)
-            points = np.concatenate((points, normals), axis=-1)  
+        points = pcd
+        if not args.use_normals:
+            points = points[:,:3]
+
+        points = farthest_point_sample(points, args.num_points)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
 
         # Normalize set of points and normals
         mean_pts = np.mean(points[:, 0:])
@@ -69,8 +102,8 @@ if __name__ == '__main__':
         pred, pts = model(points_tensor)
         pred_np = pred.detach().cpu().numpy()
 
-
         print('Detected Class::', class_mapping[np.argmax(pred_np)].upper())
         if args.vis_pcd:
-            o3d.visualization.draw_geometries([pcd])
+            o3d.visualization.draw_geometries([pcd], width = 1280, height = 720)
+            
 

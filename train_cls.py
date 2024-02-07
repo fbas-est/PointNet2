@@ -44,6 +44,21 @@ class Trainer(object):
         if (len(self.args.gpu_ids) > 1):
             self.model = torch.nn.DataParallel(self.model, device_ids=self.device)
 
+        
+        # Resuming checkpoint
+        self.start_epoch = 0
+        if self.args.resume is not None:
+            if not os.path.isfile(self.args.resume):
+                raise RuntimeError("=> no checkpoint found at '{}'" .format(args.resume))
+            checkpoint = torch.load(self.args.resume)
+            self.start_epoch = checkpoint['epoch']
+            if (len(self.args.gpu_ids) > 1):
+                self.model.module.load_state_dict(checkpoint['state_dict'])
+            else:
+                self.model.load_state_dict(checkpoint['state_dict'])
+            print("=> loaded checkpoint '{}' (epoch {})".format(self.args.resume, checkpoint['epoch']))
+
+
         # Define Optimizer (2 Options)
         if self.args.optim == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr= self.learning_rate, weight_decay = self.args.weight_decay)
@@ -108,7 +123,7 @@ class Trainer(object):
             train_loss += loss.item()
 
             # Visualize loss in the progress bar
-            tbar.set_description('Train loss: %.5f | Learning Rate: %.7f' % (loss.item(), self.learning_rate))
+            tbar.set_description('||Train loss: %.5f || Learning Rate: %.7f || Epoch/Total_Epochs: %d/%d ||' % (loss.item(), self.learning_rate, epoch, self.args.epochs))
             # Update loss value in the tensorboard schema
             self.writer.add_scalar('train/batch_train_loss', loss.item(), i + len(self.train_loader) * epoch)
 
@@ -127,14 +142,14 @@ class Trainer(object):
                                                     'learning_rate': self.learning_rate,
                                                     'state_dict': self.model.module.state_dict(), 
                                                     'optimizer': self.optimizer.state_dict()},
-                                                    filename=f"checkpoint_parallel_{epoch+1}.pth.tar")
+                                                    filename=f"checkpoint_parallel_{epoch}.pth.tar")
                     # Save model trained on a single GPU
                     else:
                         self.saver.save_checkpoint({'epoch': epoch + 1, 
                                             'learning_rate': self.learning_rate,
                                             'state_dict': self.model.state_dict(), 
                                             'optimizer': self.optimizer.state_dict()},
-                                            filename=f"checkpoint_{epoch+1}.pth.tar")
+                                            filename=f"checkpoint_{epoch}.pth.tar")
                     
             if (len(self.args.gpu_ids) > 1):
                 self.saver.save_checkpoint({'epoch': epoch + 1, 
@@ -187,7 +202,7 @@ class Trainer(object):
             self.evaluator.add_batch(np.argmax(pred_np), labels_np[0])
 
             # Visualize loss in the progress bar
-            tbar.set_description('Test loss: %.5f' % (loss.item()))
+            tbar.set_description('||Test loss: %.5f ||' % (loss.item()))
         
         # Calculate the Accuracy metric
         Acc = self.evaluator.cal_acc()
@@ -233,17 +248,17 @@ if __name__ == '__main__':
     parser.add_argument("--save_epochs", type=int, default=5, help="Number of epochs in which the model will be saved")
     parser.add_argument('--checkname', type=str, default='pointnet2_cls', help='set the checkpoint name')
     parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint to start from")
-    parser.add_argument('--resume', type=str, default=None,help='put the path to resuming file if needed')
+    parser.add_argument('--resume', type=str, default=None, help='put the path to resuming file if needed')
     parser.add_argument('--gpu_ids', type=str, default="0", help="Seperate different GPU ids with comma")
     args = parser.parse_args()
 
     trainer = Trainer(args)
     print('Total Epoches:', trainer.args.epochs)
     
-    for epoch in range(trainer.args.epochs):
+    for epoch in range(trainer.start_epoch, trainer.args.epochs):
         trainer.train_one_epoch(epoch)
         if not trainer.args.no_val and epoch % 1 == 0:
-            trainer.validation(epoch+1)
+            trainer.validation(epoch)
         
     trainer.writer.close()
   
