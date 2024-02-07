@@ -89,7 +89,7 @@ class Trainer(object):
             labels = labels.to(self.device)
             
             # Adjust lr value
-            self.lr_scheduler(self.optimizer, i, epoch)
+            self.learning_rate = self.lr_scheduler(self.optimizer, i, epoch)
             # Clear gradients before computing anew
             self.optimizer.zero_grad()
             # Make a forward propagation (prediction) of the model
@@ -108,7 +108,7 @@ class Trainer(object):
             train_loss += loss.item()
 
             # Visualize loss in the progress bar
-            tbar.set_description('Train loss: %.5f' % (loss.item()))
+            tbar.set_description('Train loss: %.5f | Learning Rate: %.7f' % (loss.item(), self.learning_rate))
             # Update loss value in the tensorboard schema
             self.writer.add_scalar('train/batch_train_loss', loss.item(), i + len(self.train_loader) * epoch)
 
