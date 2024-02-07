@@ -5,7 +5,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 import time
-from models.pointnet2_cls import get_model
+from models.pointnet2_cls import PointNet2Classification
 from dataloaders.modelnet_dataloader import ModelNetDataloader
 from tensorboardX import SummaryWriter
 from utils.losses import ClassificationLosses
@@ -39,7 +39,7 @@ class Trainer(object):
         self.learning_rate = self.args.lr
 
         # Initiate PointNet2 classification model
-        self.model = get_model(num_class = self.args.number_classes, normal_channel=self.args.use_normals)
+        self.model = PointNet2Classification(num_class = self.args.number_classes, normal_channel=self.args.use_normals)
         self.model.to(self.device)
         if (len(self.args.gpu_ids) > 1):
             self.model = torch.nn.DataParallel(self.model, device_ids=self.device)
@@ -63,7 +63,7 @@ class Trainer(object):
         self.criterion = ClassificationLosses(cuda=torch.cuda.is_available()).build_loss(mode=args.loss_type)
 
         # Define lr scheduler
-        self.lr_scheduler = LR_Scheduler(args.lr_scheduler, args.lr, args.epochs, len(self.train_loader))
+        self.lr_scheduler = LR_Scheduler(self.args.lr_scheduler, self.args.lr, self.args.epochs, len(self.train_loader))
 
         # Define Evaluator
         self.evaluator = Evaluator(self.args.number_classes)
@@ -202,6 +202,7 @@ class Trainer(object):
         self.writer.add_scalar('val/F1_score', F1_score, epoch)
         
         print('[Epoch: %d, Loss: %.3f]' % (epoch, avg_loss_test))
+        print("Acc:{}, F1_score:{}".format(Acc, F1_score))
         print('\n')
 
 
@@ -225,7 +226,6 @@ if __name__ == '__main__':
     parser.add_argument("--lr", type=float, default=0.001, help="Initial learning rate [default: 1e-2]")
     parser.add_argument('--lr_scheduler', type=str, default='poly', choices=['poly', 'step', 'cos'], help="Type of scheduler for adjusting learning rate")
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="L2 regularization coeff [default: 0.0]")
-    parser.add_argument("--lr_decay", type=float, default=0.5, help="Learning rate decay gamma [default: 0.5]")
     parser.add_argument("--momentum", type=float, default=0.92, help="Momentum  to escape local minima")
 
     parser.add_argument('--no_val', action='store_true', default=False, help='skip validation during training')

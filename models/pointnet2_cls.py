@@ -143,9 +143,9 @@ class PointNetSetAbstractionMsg(nn.Module):
         return new_xyz, new_points_concat
 
 
-class get_model(nn.Module):
+class PointNet2Classification(nn.Module):
     def __init__(self,num_class,normal_channel=True):
-        super(get_model, self).__init__()
+        super(PointNet2Classification, self).__init__()
         in_channel = 3 if normal_channel else 0
         self.normal_channel = normal_channel
         self.sa1 = PointNetSetAbstractionMsg(512, [0.1, 0.2, 0.4], [16, 32, 128], in_channel,[[32, 32, 64], [64, 64, 128], [64, 96, 128]])
@@ -182,6 +182,6 @@ class get_model(nn.Module):
 if __name__ == '__main__':
     B, N, C, S = 2, 5000, 6, 512
     points = torch.randn(B, C, N) # Random points data
-    model = get_model(40)
+    model = PointNet2Classification(40)
     print(points.shape)
     model(points)
