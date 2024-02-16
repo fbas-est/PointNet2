@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='test_data', help='Folder containing the test data')  
-    parser.add_argument('--model_path', type=str, default='run/modelnet40_normal_resampled/pointnet2_cls/run_0/last.pth.tar', help='Folder containing the trained model')  
+    parser.add_argument('--model_path', type=str, default='run/modelnet40_normal_resampled/pointnet2_cls/run_1/last.pth.tar', help='Folder containing the trained model')  
     parser.add_argument('--class_names_path', type=str, default='data/modelnet40_normal_resampled/modelnet40_shape_names.txt', help='Folder containing the class names')  
     parser.add_argument('--use_normals', action='store_true', default=False, help='use normals')
     parser.add_argument('--number_classes', type=int, default=40, help='Number of training classes')

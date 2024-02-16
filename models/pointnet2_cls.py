@@ -117,6 +117,7 @@ class PointNetSetAbstractionMsg(nn.Module):
 
         B, N, C = xyz.shape
         S = self.npoint
+        # Sampling the pointcloud
         new_xyz = index_points(xyz, farthest_point_sample(xyz, S)) # Returns the points of the sampled points which are computed from the original pcd using the FPS algorithm
         new_points_list = []
         for i, radius in enumerate(self.radius_list):
@@ -131,6 +132,7 @@ class PointNetSetAbstractionMsg(nn.Module):
                 grouped_points = grouped_xyz
 
             grouped_points = grouped_points.permute(0, 3, 2, 1)  # [B, D, K, S]
+            # MLP layer
             for j in range(len(self.conv_blocks[i])):
                 conv = self.conv_blocks[i][j]
                 bn = self.bn_blocks[i][j]
